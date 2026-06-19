@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <title>Super Łapacz Diamentów - Wersja Uniwersalna</title>
+    <style>
+        body { background-color: #1a1a1a; color: white; font-family: 'Impact', 'Arial Black', sans-serif; text-align: center; margin: 0; padding: 10px; user-select: none; touch-action: none; }
+        .game-wrapper { position: relative; width: 600px; height: 600px; margin: 0 auto; display: none; max-width: 100%; }
+        canvas { border: 4px solid #fff; background-color: #87CEEB; box-shadow: 0 0 25px rgba(0,0,0,0.5); display: block; max-width: 100%; height: auto; }
+        .menu-container { width: 600px; height: 600px; background: linear-gradient(to bottom, #87CEEB 0%, #4cbb17 100%); border: 4px solid #fff; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(0,0,0,0.5); position: relative; max-width: 100%; box-sizing: border-box; }
+        .menu-title { font-size: 36px; color: #fff; text-shadow: 3px 3px 0 #000; margin-bottom: 30px; padding: 0 10px; }
+        .menu-btn { background-color: #ffcc00; color: #000; border: 3px solid #fff; padding: 12px 20px; font-size: 22px; font-family: inherit; cursor: pointer; margin: 8px; width: 85%; max-width: 340px; border-radius: 10px; text-shadow: 1px 1px 0 #fff; box-shadow: 3px 3px 0 #000; transition: 0.1s; z-index: 10; }
+        .menu-btn:hover { background-color: #ffa500; transform: scale(1.02); }
+        .menu-btn:active { transform: scale(0.98); }
+        .menu-btn:disabled { background-color: #555 !important; color: #aaa !important; cursor: not-allowed; box-shadow: none; transform: none; }
+        .shop-desc { font-family: Arial, sans-serif; font-size: 13px; color: #fff; margin-top: -3px; margin-bottom: 8px; text-shadow: 1px 1px 2px #000; font-weight: bold; padding: 0 15px; }
+        .error-msg { color: #ff3333; font-size: 18px; font-weight: bold; text-shadow: 2px 2px 0 #000; margin-top: 10px; height: 25px; min-height: 25px; }
+        .pause-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); border: 4px solid #ffcc00; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; }
+        .stats-bar { width: 600px; max-width: 100%; margin: 0 auto 5px auto; display: none; justify-content: space-between; font-size: 18px; text-shadow: 2px 2px 0 #000; box-sizing: border-box; padding: 0 5px; }
+        .info-text { font-family: Arial, sans-serif; font-size: 13px; color: #aaa; margin-top: 10px; }
+        .mobile-pause-btn { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.6); color: #fff; border: 2px solid #fff; font-size: 20px; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 15; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+    <div class="stats-bar" id="statsBar">
+        <div>💎 <span id="score" style="color: #ffff00;">0</span></div>
+        <div>❤️ <span id="lives" style="color: #ff3333;">3</span></div>
+        <div>🪙 <span id="coinsDisplay" style="color: #ffcc00;">0</span></div>
+        <div>⏱️ <span id="time" style="color: #00ffff;">0s</span></div>
+    </div>
+
+    <div class="game-wrapper" id="gameWrapper">
+        <button class="mobile-pause-btn" onclick="pauseGame()">⏸️</button>
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <div class="pause-overlay" id="pauseMenu" style="display: none;">
+            <div class="menu-title" style="color: #ffcc00;">⏸️ PAUZA</div>
+            <button class="menu-btn" onclick="resumeGame()">▶️ WZNÓW</button>
+            <button class="menu-btn" style="background-color: #ff4444; color: white;" onclick="backToMenuFromPause()">🏠 WRÓĆ DO LOBBY</button>
+        </div>
+    </div>
+
+    <div class="menu-container" id="mainMenu">
+        <div class="menu-title">💎 ŁAPACZ DIAMENTÓW 💎</div>
+        <button class="menu-btn" onclick="startGame()">🎮 GRAJ</button>
+        <button class="menu-btn" onclick="openShop()">🏪 SKLEP</button>
+        <button class="menu-btn" id="installBtn" style="background-color: #00ccff; display: none;">📥 POBIERZ NA TELEFON</button>
+        <button class="menu-btn" style="background-color: #ff4444; color: white;" onclick="exitGame()">❌ WYJŚCIE</button>
+        <div style="margin-top: 20px; font-size: 18px; text-shadow: 1px 1px 0 #000;">Twoje Monety: <span id="menuCoins" style="color: #ffcc00;">0</span> 🪙</div>
+    </div>
+
+    <div class="menu-container" id="shopMenu" style="display: none; background: linear-gradient(to bottom, #26004d 0%, #1a0033 100%); border-color: #ff00ff;">
+        <div class="menu-title" style="color: #ff00ff; text-shadow: 3px 3px 0 #000; margin-bottom: 20px;">🏪 SKLEP Z ULEPSZENIAMI</div>
+        <div style="font-size: 24px; margin-bottom: 20px;">Posiadasz: <span id="shopCoins" style="color: #ffcc00;">0</span> 🪙</div>
+        <button class="menu-btn" id="upgradeBtn" onclick="buyUpgrade('normal')">🧺 WIĘKSZY KOSZYK<br><span style="font-size:16px;">Koszt: 10 Monet</span></button>
+        <div class="shop-desc">Zwiększa szerokość Twojego podstawowego koszyka o +50%.</div>
+        <button class="menu-btn" id="goldUpgradeBtn" style="background-color: #ffd700;" onclick="buyUpgrade('gold')">✨ ZŁOTY KOSZYK ✨<br><span style="font-size:16px;">Koszt: 50 Monet</span></button>
+        <div class="shop-desc">Powiększony rozmiar, szybsze skręcanie i 50% szans na odbicie bomby!</div>
+        <button class="menu-btn" style="background-color: #888; margin-top: 15px;" onclick="closeShop()">⬅️ POWRÓT</button>
+        <div class="error-msg" id="shopError"></div>
+    </div>
+
+    <div class="menu-container" id="gameOverMenu" style="display: none; background: rgba(0,0,0,0.9);">
+        <div class="menu-title" style="color: #ff3333;">💥 KONIEC GRY 💥</div>
+        <div id="finalScore" style="font-size: 24px; margin-bottom: 10px;">Zdobyte punkty: 0</div>
+        <div id="earnedCoins" style="font-size: 24px; color: #ffcc00; margin-bottom: 40px;">Zarobione monety: +0 🪙</div>
+        <button class="menu-btn" onclick="startGame()">🔄 ZAGRAJ PONOWNIE</button>
+        <button class="menu-btn" style="background-color: #888;" onclick="backToMenu()">🏠 MENU GŁÓWNE</button>
+    </div>
+
+    <div class="info-text">PC: Klawisze A,D / Strzałki | [ESC] Pauza | [R] Reset monet<br>Telefon: Przeciągaj palcem po ekranie</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const mainMenu = document.getElementById("mainMenu");
+        const shopMenu = document.getElementById("shopMenu");
+        const pauseMenu = document.getElementById("pauseMenu");
+        const gameOverMenu = document.getElementById("gameOverMenu");
+        const statsBar = document.getElementById("statsBar");
+        const gameWrapper = document.getElementById("gameWrapper");
+        const shopError = document.getElementById("shopError");
+        
+        const basketNormalImg = new Image(); basketNormalImg.src = 'koszyk.png';
+        const basketGoldImg = new Image(); basketGoldImg.src = 'zloty_koszyk.png';
+        const diamondImg = new Image(); diamondImg.src = 'diament.png';
+        const bombImg = new Image(); bombImg.src = 'bomba.png';
+        const mushroomImg = new Image(); mushroomImg.src = 'grzyb.png';
+
+        let totalCoins = parseInt(localStorage.getItem("totalCoins")) || 0;
+        let basketUpgradeBought = localStorage.getItem("basketUpgrade") === "true";
+        let goldBasketBought = localStorage.getItem("goldBasket") === "true";
+
+        let score = 0, lives = 3, gameOver = false, gamePaused = false, isPlaying = false, startTime = 0, elapsedTime = 0, pauseOffset = 0, lastPauseTime = 0;
+        let specialDimension = false, dimensionTimer = 0, portalPulse = 0;
+        let starShieldTimer = 0;
+
+        let basket = { x: 260, y: 520, width: 90, height: 50, speed: 12 };
+        let items = [];
+        let keys = {};
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            if (type === 'point') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(587, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+            } else if (type === 'life') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(784, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'portal') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.6);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+            }
+        }
+
+        function updateCoinDisplays() {
+            document.getElementById("menuCoins").innerText = totalCoins;
+            document.getElementById("shopCoins").innerText = totalCoins;
+            document.getElementById("coinsDisplay").innerText = totalCoins;
+            if (basketUpgradeBought || goldBasketBought) {
+                document.getElementById("upgradeBtn").innerHTML = "🧺 KOSZYK ULEPSZONY<br><span style='font-size:14px;color:gold;'>ODBLOKOWANE</span>";
+                document.getElementById("upgradeBtn").disabled = true;
+            } else {
+                document.getElementById("upgradeBtn").innerHTML = "🧺 WIĘKSZY KOSZYK<br><span style='font-size:16px;color:#fff;'>Koszt: 10 Monet</span>";
+                document.getElementById("upgradeBtn").disabled = false;
+            }
+            if (goldBasketBought) {
+                document.getElementById("goldUpgradeBtn").innerHTML = "✨ ZŁOTY KOSZYK ✨<br><span style='font-size:14px;color:gold;'>ZAKUPIONO W PEŁNI</span>";
+                document.getElementById("goldUpgradeBtn").disabled = true;
+            } else {
+                document.getElementById("goldUpgradeBtn").innerHTML = "✨ ZŁOTY KOSZYK ✨<br><span style='font-size:16px;color:#000;'>Koszt: 50 Monet</span>";
+                document.getElementById("goldUpgradeBtn").disabled = false;
+            }
+        }
+        updateCoinDisplays();
+
+        function startGame() {
+            mainMenu.style.display = "none"; gameOverMenu.style.display = "none"; pauseMenu.style.display = "none"; gameWrapper.style.display = "block"; statsBar.style.display = "flex";
+            score = 0; lives = 3; gameOver = false; gamePaused = false; isPlaying = true; startTime = Date.now(); pauseOffset = 0; items = []; specialDimension = false; starShieldTimer = 0;
+            basket.x = 260;
+            if (goldBasketBought) { basket.width = 135; basket.speed = 16; } 
+            else if (basketUpgradeBought) { basket.width = 135; basket.speed = 12; } 
+            else { basket.width = 90; basket.speed = 12; }
+            document.getElementById("score").innerText = score; document.getElementById("lives").innerText = lives;
+            gameLoop();
+        }
+
+        function pauseGame() { if (gameOver || gamePaused || !isPlaying) return; gamePaused = true; lastPauseTime = Date.now(); pauseMenu.style.display = "flex"; }
+        function resumeGame() { if (!gamePaused) return; gamePaused = false; pauseOffset += Date.now() - lastPauseTime; pauseMenu.style.display = "none"; gameLoop(); }
+        function backToMenuFromPause() { gamePaused = false; isPlaying = false; pauseMenu.style.display = "none"; gameWrapper.style.display = "none"; statsBar.style.display = "none"; mainMenu.style.display = "flex"; updateCoinDisplays(); }
+        function openShop() { mainMenu.style.display = "none"; shopMenu.style.display = "flex"; shopError.innerText = ""; updateCoinDisplays(); }
+        function closeShop() { shopMenu.style.display = "none"; mainMenu.style.display = "flex"; }
+        
+        function buyUpgrade(type) {
+            shopError.innerText = "";
+            if (type === 'normal') {
+                if (totalCoins >= 10 && !basketUpgradeBought && !goldBasketBought) {
+                    totalCoins -= 10; basketUpgradeBought = true; localStorage.setItem("totalCoins", totalCoins); localStorage.setItem("basketUpgrade", "true"); playSound('life'); updateCoinDisplays();
+                } else if (totalCoins < 10) { showErrorMsg(); }
+            } else if (type === 'gold') {
+                if (totalCoins >= 50 && !goldBasketBought) {
+                    totalCoins -= 50; goldBasketBought = true; localStorage.setItem("totalCoins", totalCoins); localStorage.setItem("goldBasket", "true"); playSound('life'); updateCoinDisplays();
+                } else if (totalCoins < 50) { showErrorMsg(); }
+            }
+        }
+        function showErrorMsg() { shopError.innerText = "Brakuje Ci monet do zakupu tego przedmiotu!"; setTimeout(() => { shopError.innerText = ""; }, 2000); }
+        function exitGame() { window.close(); window.location.href = "about:blank"; }
+        function backToMenu() { gameOverMenu.style.display = "none"; mainMenu.style.display = "flex"; updateCoinDisplays(); }
+
+        function handleTouch(e) {
+            if (!isPlaying || gamePaused || gameOver) return;
+            let touch = e.touches[0]; let rect = canvas.getBoundingClientRect();
+            let relativeX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+            basket.x = relativeX - (basket.width / 2);
+            if (basket.x < 0) basket.x = 0; if (basket.x > canvas.width - basket.width) basket.x = canvas.width - basket.width;
+            e.preventDefault();
+        }
+        window.addEventListener("touchstart", handleTouch, { passive: false });
+        window.addEventListener("touchmove", handleTouch, { passive: false });
+
+        window.addEventListener("keydown", e => {
+            if (e.code === "KeyR") {
+                let konfirmacja = confirm("Czy na pewno chcesz zresetować stan gry?");
+                if (konfirmacja) { localStorage.clear(); totalCoins = 0; basketUpgradeBought = false; goldBasketBought = false; alert("Zapis zresetowany!"); location.reload(); }
+            }
+            if (e.code === "Escape") { if (isPlaying) { if (gamePaused) resumeGame(); else pauseGame(); } }
+            keys[e.code] = true;
+        });
+        window.addEventListener("keyup", e => keys[e.code] = false);
+
+        function spawnItem() {
+            if (gamePaused || gameOver || !isPlaying) return;
+            if (Math.random() < (specialDimension ? 0.08 : 0.025)) {
+                let rand = Math.random(); let itemType = 'diamond'; let speedX = 0;
+                let speedMultiplier = 1 + (elapsedTime / 45) + (score / 1200);
+                if (specialDimension) speedMultiplier *= 3;
+                let baseSpeed = (1.1 + Math.random() * 1.5) * speedMultiplier;
+                let bombChance = 0.18;
+                if (score > 800) bombChance = 0.38; else if (score > 300) bombChance = 0.28;
+
+                if (rand < bombChance) {
+                    itemType = 'bomb';
+                    if (Math.random() < 0.3) itemType = 'bomb_x2';
+                    if (Math.random() < 0.4) speedX = Math.random() < 0.5 ? -1.5 : 1.5;
+                } else if (rand >= bombChance && rand < (bombChance + 0.04) && !specialDimension) { itemType = 'portal'; } 
+                else if (rand > 0.92 && lives < 3) { itemType = 'heart'; } 
+                else if (rand > 0.40 && rand < 0.44) { itemType = 'mushroom'; } 
+                else if (rand > 0.82) { itemType = 'gold_diamond'; }
+
+                items.push({ x: Math.random() * (canvas.width - 35), y: -35, width: 35, height: 35, speedY: baseSpeed, speedX: speedX, type: itemType });
+            }
+        }
+
+        function update() {
+            if (gameOver || gamePaused || !isPlaying) return;
+            elapsedTime = Math.floor((Date.now() - startTime - pauseOffset) / 1000);
+            document.getElementById("time").innerText = elapsedTime + "s"; portalPulse += 0.1;
+            if (starShieldTimer > 0) starShieldTimer--;
+            if (specialDimension) { dimensionTimer--; if (dimensionTimer <= 0) exitSpecialDimension(); }
+            let currentSpeed = specialDimension ? basket.speed * 1.3 : basket.speed;
+            if ((keys["ArrowLeft"] || keys["KeyA"]) && basket.x > 0) basket.x -= currentSpeed;
+            if ((keys["ArrowRight"] || keys["KeyD"]) && basket.x < canvas.width - basket.width) basket.x += currentSpeed;
+
+            items.forEach((item, index) => {
+                item.y += item.speedY; item.x += item.speedX;
+                if (item.x <= 0 || item.x + item.width >= canvas.width) item.speedX = -item.speedX;
+                if (item.x < basket.x + basket.width && item.x + item.width > basket.x && item.y < basket.y + basket.height && item.y + item.height > basket.y) {
+                    let pointGain = 0;
+                    if (item.type === 'diamond') { pointGain = 10; playSound('point'); }
+                    else if (item.type === 'gold_diamond') { pointGain = 20; playSound('point'); }
+                    else if (item.type === 'heart') { lives++; if(lives>3)lives=3; playSound('life'); }
+                    else if (item.type === 'portal') { enterSpecialDimension(); }
+                    else if (item.type === 'mushroom') { starShieldTimer = 10 * 60; playSound('life'); }
+                    else if (item.type === 'bomb' || item.type === 'bomb_x2') {
+                        if (starShieldTimer <= 0) {
+                            if (goldBasketBought && Math.random() < 0.5) { playSound('point'); } 
+                            else { if (specialDimension) { exitSpecialDimension(); } else { lives -= (item.type === 'bomb_x2') ? 2 : 1; } }
+                        } else { playSound('point'); }
+                    }
+                    if (specialDimension) pointGain *= 3; score += pointGain;
+                    if (lives <= 0) { lives = 0; gameOver = true; isPlaying = false; playSound('gameover'); endGameScreen(); }
+                    document.getElementById("score").innerText = score; document.getElementById("lives").innerText = lives; items.splice(index, 1);
+                } else if (item.y > canvas.height) { items.splice(index, 1); }
+            });
+        }
+
+        function enterSpecialDimension() { specialDimension = true; dimensionTimer = 60 * 60; playSound('portal'); items = []; }
+        function exitSpecialDimension() { specialDimension = false; playSound('portal'); items = []; }
+        document.addEventListener("visibilitychange", () => { if (document.hidden && isPlaying) pauseGame(); });
+
+        function endGameScreen() {
+            gameWrapper.style.display = "none"; statsBar.style.display = "none"; gameOverMenu.style.display = "flex";
+            let earned = Math.floor(score / 50); totalCoins += earned; localStorage.setItem("totalCoins", totalCoins);
+            document.getElementById("finalScore").innerText = "Zdobyte punkty: " + score; document.getElementById("earnedCoins").innerText = "Zarobione monety: +" + earned + " 🪙";
+        }
+
+        function drawBackground() {
+            if (!specialDimension) {
+                ctx.fillStyle = "#87CEEB"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#FFF799"; ctx.beginPath(); ctx.arc(100, 90, 35, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#4a7c59"; ctx.beginPath(); ctx.moveTo(0, 480); ctx.lineTo(180, 260); ctx.lineTo(360, 480); ctx.fill();
+                ctx.fillStyle = "#3b6347"; ctx.beginPath(); ctx.moveTo(220, 480); ctx.lineTo(440, 220); ctx.lineTo(600, 480); ctx.fill();
+                ctx.fillStyle = "#5c9e31"; ctx.fillRect(0, 450, canvas.width, 150); ctx.fillStyle = "#4c8428"; ctx.fillRect(0, 470, canvas.width, 130);
+                let treePositions = [60, 150, 450, 530]; treePositions.forEach(x => { ctx.fillStyle = "#7A431D"; ctx.fillRect(x + 8, 415, 10, 45); ctx.fillStyle = "#2e6f40"; ctx.beginPath(); ctx.arc(x + 13, 395, 22, 0, Math.PI * 2); ctx.fill(); });
+            } else { ctx.fillStyle = "#0c001f"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = "#1e003b"; ctx.fillRect(0, 450, canvas.width, 150); }
+        }
+
+        function draw() {
+            drawBackground();
+            if (starShieldTimer > 0) { ctx.shadowBlur = 20; ctx.shadowColor = "gold"; } else if (goldBasketBought) { ctx.shadowBlur = 10; ctx.shadowColor = "#ffd700"; }
+            if (goldBasketBought) { ctx.drawImage(basketGoldImg, basket.x, basket.y, basket.width, basket.height); } else { ctx.drawImage(basketNormalImg, basket.x, basket.y, basket.width, basket.height); }
+            ctx.shadowBlur = 0;
+            items.forEach(item => {
+                if (item.type === 'diamond') ctx.drawImage(diamondImg, item.x, item.y, item.width, item.height);
+                else if (item.type === 'gold_diamond') { ctx.shadowBlur = 15; ctx.shadowColor = "gold"; ctx.drawImage(diamondImg, item.x, item.y, item.width, item.height); ctx.shadowBlur = 0; ctx.fillStyle = "gold"; ctx.font = "bold 12px Arial"; ctx.fillText(specialDimension ? "X6" : "X2", item.x + item.width, item.y); } 
+                else if (item.type === 'bomb') ctx.drawImage(bombImg, item.x, item.y, item.width, item.height);
+                else if (item.type === 'bomb_x2') { ctx.shadowBlur = 15; ctx.shadowColor = "red"; ctx.drawImage(bombImg, item.x, item.y, item.width, item.height); ctx.shadowBlur = 0; ctx.fillStyle = "red"; ctx.font = "bold 12px Arial"; ctx.fillText("DMG x2", item.x + item.width, item.y); } 
+                else if (item.type === 'mushroom') ctx.drawImage(mushroomImg, item.x, item.y, item.width, item.height);
+                else if (item.type === 'heart') { ctx.fillStyle = "#ff3366"; ctx.beginPath(); let topCurveY = item.y + 10; ctx.moveTo(item.x + 17, item.y + 12); ctx.bezierCurveTo(item.x + 17, topCurveY, item.x + 5, topCurveY, item.x + 5, item.y + 22); ctx.bezierCurveTo(item.x + 5, item.y + 32, item.x + 17, item.y + 37, item.x + 17, item.y + 40); ctx.bezierCurveTo(item.x + 17, item.y + 37, item.x + 30, item.y + 32, item.x + 30, item.y + 22); ctx.bezierCurveTo(item.x + 30, topCurveY, item.x + 17, topCurveY, item.x + 17, item.y + 12); ctx.closePath(); ctx.fill(); } 
+                else if (item.type === 'portal') { let size = 20 + Math.sin(portalPulse) * 4; ctx.strokeStyle = "#ff00ff"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(item.x + 17, item.y + 17, size, 0, Math.PI * 2); ctx.stroke(); }
+            });
+        }
+
+        function gameLoop() { if (gameOver || !isPlaying) return; if (!gamePaused) { update(); spawnItem(); } draw(); requestAnimationFrame(gameLoop); }
+
+        // --- SKRYPT INSTALACYJNY PWA ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(() => console.log('PWA Service Worker zarejestrowany.'));
+        }
+
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'block'; // Pokazuje przycisk, gdy gra wykryje telefon
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('Użytkownik zainstalował grę!');
+                    installBtn.style.display = 'none';
+                }
+                deferredPrompt = null;
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            installBtn.style.display = 'none';
+            deferredPrompt = null;
+        });
+    </script>
+</body>
+</html>
